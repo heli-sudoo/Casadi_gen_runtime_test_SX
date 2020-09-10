@@ -1,0 +1,28 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "C/C++: g++ build active file",
+			"command": "/usr/bin/g++",
+			"args": [
+				"-g",
+				"${workspaceFolder}/sourcefiles/*.c","${workspaceFolder}/sourcefiles/*.cpp",
+				"-o",
+				"${workspaceFolder}/${fileBasenameNoExtension}",
+				"-I",
+				"${workspaceFolder}/headerfiles"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}
