@@ -3,7 +3,8 @@
 #include <vector>
 #include <string>
 #include <cstring>
-#include <chrono>
+#include <chrono> // system clock
+#include <memory> // smart pointer 
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Sparse>
 #include <eigen3/unsupported/Eigen/SparseExtra>
@@ -35,12 +36,13 @@ typedef Eigen::Matrix<double, 7, 1> CoorVec;
 void Forward_dyn(StateVec&, ContrlVec&, StateVec&, OutputVec&);
 void Forward_dyn_par(StateVec&, ContrlVec&, SpMat&, SpMat&, SpMat&, SpMat&);
 void Jacobian(StateVec&, SpMat&, SpMat&);
+void Read_Dyn_Info_Deprecated(StateVec&, ContrlVec&, SpMat&, SpMat&);
 void Read_Dyn_Info(StateVec&, ContrlVec&, SpMat&, SpMat&);
 void Read_Dyn_par_Info(StateVec&, ContrlVec&, SpMat&, SpMat&, SpMat&, SpMat&);
 void test();
-
+void Initialize_Mat(SpMat&, SpMat&);
 int main()
-{
+{   
     cout << "This code benchmark runtime of casadi_gen func and matlab_gen fun." << endl;
     const int qsize = 7, xsize = 2*qsize, usize = 4, ysize = 2;
     StateVec x, x_next;
@@ -72,11 +74,7 @@ int main()
     auto duration = duration_cast<microseconds>(stop - start);
 
     cout << "Runtime : " << duration.count() << " microseconds " <<endl; 
-    // cout << "x_next = " <<"\n" << x_next << endl;
-    // cout << "y = "<< "\n"<< y << endl;           
-    // cout << "gu = " << "\n" << gu << endl;
-    // cout << "JF = " << "\n" << JF << endl;
-    
+    Initialize_Mat(H, tau);
     Eigen::BiCGSTAB<SpMat> solver;
     auto start2 = high_resolution_clock::now();
     Read_Dyn_Info(x, u, H, tau);
@@ -87,7 +85,81 @@ int main()
     cout << "Runtime : " << duration2.count() << " microseconds " <<endl; 
     Eigen::saveMarket(H, "H.mtx");
     Eigen::saveMarketVector(CoorVec(tau), "H_b.mtx");
-    test();
+
+}
+
+void Initialize_Mat(SpMat& H, SpMat& tau)
+{
+    const int n_out = 2;
+    size_t ou, i_out, col, col_temp;
+    size_t row, i_nz = 0;
+
+    const casadi_int* ou_sp_info;
+    const casadi_int* ou_index[n_out];
+    const casadi_int* ou_colptr_info[n_out];
+    const casadi_int* ou_row_info[n_out];
+    casadi_int nnz_ou[n_out];
+
+    for (ou = 0; ou < n_out; ou++)
+    {
+        ou_sp_info = Dyn_FL_sub_sparsity_out(ou);
+        ou_index[ou] = ou_sp_info;
+        ou_colptr_info[ou] = ou_sp_info + 2;
+        ou_row_info[ou] = ou_colptr_info[ou] + ou_index[ou][1] + 1;
+        nnz_ou[ou] = *(ou_row_info[ou] - 1);
+    }
+
+    H.reserve(nnz_ou[0]);
+    tau.reserve(nnz_ou[1]);
+    for (i_out = 0; i_out < n_out; i_out++)
+    {
+        for (col = 0; col < ou_index[i_out][1]; col++)
+        {
+            col_temp = col;
+            while ((col_temp+1< ou_index[i_out][1]) && (ou_colptr_info[i_out][col_temp+1] == 0))
+            {
+                col_temp = col_temp + 1;
+            }
+            
+            
+            for (row = 0;i_nz < ou_colptr_info[i_out][col_temp+1] ; ++i_nz, ++row)
+            {
+                if (i_out == 0)
+                {
+                    H.insert(ou_row_info[i_out][i_nz], col) = 0;
+                }
+                else
+                {
+                    tau.insert(ou_row_info[i_out][i_nz], col) = 0;
+                }                
+                
+            }
+        }
+    }
+    H.makeCompressed();
+    tau.makeCompressed();
+
+}
+
+void Read_Dyn_Info(StateVec&x, ContrlVec&u, SpMat&H, SpMat&tau)
+{
+    double *arg[2], *res[2], *w;
+    casadi_int *iw;
+    casadi_int sz_arg, sz_res, sz_iw, sz_w;
+    Dyn_FL_sub_work(&sz_arg, &sz_res, &sz_iw, &sz_w);
+
+    arg[0] = x.data();
+    arg[1] = u.data();
+    res[0] = H.valuePtr();
+    res[1] = tau.valuePtr();
+    iw = new casadi_int[sz_iw];
+    w = new double[sz_w];
+
+        
+    Dyn_FL_sub((const double**)arg, res, iw, w, 1);
+
+    delete[] iw;
+    delete[] w;
 
 }
 
@@ -99,8 +171,9 @@ void test()
     cout << "b = " << b << endl;
 }
 
-void Read_Dyn_Info(StateVec&x, ContrlVec&u, SpMat&H, SpMat&tau)
+void Read_Dyn_Info_Deprecated(StateVec&x, ContrlVec&u, SpMat&H, SpMat&tau)
 {
+    /*This function is deprecated */
     double **arg;
     double **res,  *w;
     int_T *iw;
