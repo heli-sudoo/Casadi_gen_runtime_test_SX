@@ -4,5 +4,8 @@
 *.o
 *.log
 
+# output files
+*.mtx
+
 # directory
 MATRIXDIR/
