@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "chrono": "cpp",
-        "new": "cpp",
-        "ostream": "cpp",
-        "sparse": "cpp",
-        "sparsecore": "cpp"
-    }
-}
