@@ -26,35 +26,47 @@ typedef Eigen::Vector2d OutputVec;
 typedef Eigen::Matrix<double, 7, 1> CoorVec;
 
 void test();
-void Initialize_Mat(const int_T *f_sparse_out(int_T), vector<SpMat*>&);
-void Initialization();
-void Read_Dyn_Info(StateVec&, ContrlVec&, SpMat&, SpMat&);
-void Forward_dyn(StateVec&, ContrlVec&, StateVec&, OutputVec&);
-void Forward_dyn_par(StateVec&, ContrlVec&, SpMat&, SpMat&, SpMat&, SpMat&);
+void initialize_mat(const int_T *f_sparse_out(int_T), vector<SpMat*>&);
+void initialization();
+void read_dyn_info(StateVec&, ContrlVec&, SpMat&, SpMat&);
+void dynamics(StateVec&, ContrlVec&, StateVec&, OutputVec&, int);
+void dynamics_par(StateVec&, ContrlVec&, SpMat&, SpMat&, SpMat&, SpMat&, int);
+void resetmap(StateVec&, StateVec&, OutputVec&, int);
+void resetmap_par(StateVec&, SpMat&, SpMat&, SpMat&, SpMat&, int);
+void footJacobian(StateVec&, SpMat&, SpMat&, int);
+void sparseIdentityMat(SpMat&);
 
-
-void Forward_dyn_old(StateVec&, ContrlVec&, StateVec&, OutputVec&);
-void Forward_dyn_par_old(StateVec&, ContrlVec&, SpMat&, SpMat&, SpMat&, SpMat&);
+void dynamics_old(StateVec&, ContrlVec&, StateVec&, OutputVec&);
+void dynamics_par_old(StateVec&, ContrlVec&, SpMat&, SpMat&, SpMat&, SpMat&);
 void Jacobian_old(StateVec&, SpMat&, SpMat&);
-void Initialize_Mat_old(SpMat&, SpMat&);
+void initialize_mat_old(SpMat&, SpMat&);
 
 const int qsize = 7, xsize = 2*qsize, usize = 4, ysize = 2;
+float dt;
 
-StateVec x, x_next;
+StateVec x, x_next, fc;
 ContrlVec u;
 OutputVec y;
-CoorVec q, qd_next_f;
+CoorVec q, qd, qd_next_f;
 
-SpMat fx(xsize, xsize);
-SpMat fu(xsize, usize);
+// StateTransMat fx;
+// ContrlMat fu;
+
+SpMat fx(xsize, xsize);  // dynamics partial w.r.t. x in discrete time
+SpMat fu(xsize, usize);  // dynamics partial w.r.t. u in discrete time
+SpMat fcx(xsize, xsize); // dynamics partial w.r.t. x in continuous time
+SpMat fcu(xsize, usize); // dynamics partial w.r.t. u in continuous time
+SpMat Px(xsize, xsize);  // resetmap partial
+SpMat Pu(xsize, usize);
 SpMat gx(ysize, xsize);
 SpMat gu(ysize, usize);
-SpMat JF(ysize, qsize);
-SpMat JFd(ysize, qsize);
-SpMat JB(ysize, qsize);
-SpMat JBd(ysize, qsize);
+SpMat J(ysize, qsize);
+SpMat Jd(ysize, qsize);
 SpMat H(qsize, qsize);
 SpMat tau(qsize, 1);
+SpMat SpI14(xsize, xsize);
+SpMat SpI7(qsize, qsize);
+SpMat SpI4(usize, usize);
 Eigen::BiCGSTAB<SpMat> solver;
 
 
